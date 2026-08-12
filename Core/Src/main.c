@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_gpio.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -33,9 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define RCC_AHB1ENR  (*(volatile unsigned int*)(0x40023800 + 0x30))
-#define GPIOA_MODER (*(volatile unsigned int*)(0x40020000 + 0x00))
-#define GPIOA_OTYPER (*(volatile unsigned int*)(0x40020000 + 0x04))
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -88,30 +88,10 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  //MX_GPIO_Init();
-  //MX_USART2_UART_Init();
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  //*(volatile unsigned int*)0x40020000 = (2u<<10);
-  //GPIOA 클럭활성
-  RCC_AHB1ENR|=(1u<<0);
-
-  //GPIOA_MODER
-  GPIOA_MODER &=~(3u<<10);
-  GPIOA_MODER |=(1u<<10);
-
-  //push pull
-
-   GPIOA_OTYPER &=~(1u<<5);
-
-  //GPIOB 클럭활성
-  *(volatile unsigned int*)(0x40023800 + 0x30) |=(1u<<1);
-  //GPIOB_MODER
-  *(volatile unsigned int*)(0x40020400 + 0x00) &=~(3u<<0);
-  *(volatile unsigned int*)(0x40020400 + 0x00) |=(1u<< 0);
-
-  //push pull
-  *(volatile unsigned int*)(0x40020400 + 0x04) &=~(1u<<0);
-
+  
 
   /* USER CODE END 2 */
 
@@ -119,13 +99,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-	  // HAL_Delay(500);
-    *(volatile unsigned int*)0x40020014 ^= (1u<<5);
-    *(volatile unsigned int*)0x40020414 ^= (1u<<0);
+    GPIO_PinState button=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
+    if(button==GPIO_PIN_RESET){
+      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+    }
 
-    volatile int delay_count=1000000;
-    while(delay_count--){}
+    GPIO_PinState button1=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0);
+    if(button1==GPIO_PIN_RESET){
+      HAL_Delay(50);
+      button1=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0);
+      if(button1==GPIO_PIN_RESET){
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+      }
+      
+    }
+	  
+ 
 
     /* USER CODE END WHILE */
 
