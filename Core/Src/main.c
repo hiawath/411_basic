@@ -18,8 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_gpio.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -57,6 +55,15 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+
+  if(GPIO_Pin==GPIO_PIN_13){
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+  }
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -99,22 +106,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    GPIO_PinState button=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
-    if(button==GPIO_PIN_RESET){
-      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-    }
-
-    GPIO_PinState button1=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0);
-    if(button1==GPIO_PIN_RESET){
-      HAL_Delay(50);
-      button1=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0);
-      if(button1==GPIO_PIN_RESET){
-        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-      }
-      
-    }
-	  
- 
+    
 
     /* USER CODE END WHILE */
 
