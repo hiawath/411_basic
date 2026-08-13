@@ -23,6 +23,19 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#ifdef __GNUC__
+  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif
+
+PUTCHAR_PROTOTYPE
+{
+  /* Polling 방식으로 1바이트 전송 (전송 완료될 때까지 대기) */
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+  return ch;
+}
 
 /* USER CODE END Includes */
 
@@ -63,6 +76,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
   }
 }
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+
+  
+}
 
 
 /* USER CODE END 0 */
@@ -99,14 +116,23 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   
-
+    uint8_t rx_data;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+    if(HAL_UART_Receive(&huart2, &rx_data, 1, 10)==HAL_OK){
+      if(rx_data=='a')
+      printf("Hello STM32 Cortex-M4 USART Polling!\r\n");
+      else
+        HAL_UART_Transmit(&huart2, &rx_data, 1, 10);
+
+    }
     
+  
 
     /* USER CODE END WHILE */
 
