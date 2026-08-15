@@ -6,5 +6,10 @@
 #include <stdbool.h>
 
 void adcInit(void);
-uint32_t adcReadRaw(void);
-float adcReadTemp(void);
+void adcStartIT(uint32_t interval_ms);
+void adcSetInterval(uint32_t interval_ms);
+void adcUpdate(void);
+
+uint32_t adcGetRaw(void);
+float adcGetTemp(void);
+bool adcIsUpdated(void);

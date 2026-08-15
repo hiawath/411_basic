@@ -1,43 +1,121 @@
 #include "myAdc.h"
 
-/* STM32F411 내부 온도 센서 특성 파라미터 (데이터시트 기준) */
-#define V25_MV       760.0f  /* 25도에서의 전압: 약 0.76V (760mV) */
-#define AVG_SLOPE    2.5f    /* 기울기: 2.5 mV/°C */
+/* STM32F411 내부 온도 센서 파라미터 (데이터시트 기준) */
+#define V25_MV       760.0f  /* 25도에서의 센서 전압: 약 0.76V (760mV) */
+#define AVG_SLOPE    2.5f    /* 전압-온도 기울기: 2.5 mV/°C */
 #define VREF_MV      3300.0f /* ADC 기준 전압: 3.3V (3300mV) */
-#define ADC_MAX_VAL  4095.0f /* 12비트 ADC 해상도 */
+#define ADC_MAX_VAL  4095.0f /* 12비트 ADC 최대값 */
+
+/* 인터럽트(ISR)와 메인 루프 간 공유 변수 */
+static volatile uint32_t adc_raw_val = 0;
+static volatile bool is_conv_done = false;
+
+/* 계산된 결과 변수 (메인 컨텍스트에서 갱신) */
+static float calculated_temp = 0.0f;
+static bool temp_updated_flag = false;
+
+static uint32_t sample_interval_ms = 500; /* 기본 샘플링 주기: 0.5초 (500ms) */
+static uint32_t last_trigger_tick = 0;
+static bool is_running = false;
 
 void adcInit(void)
 {
-  // 필요한 ADC 추가 초기화
+  adc_raw_val = 0;
+  is_conv_done = false;
+  calculated_temp = 0.0f;
+  temp_updated_flag = false;
+  sample_interval_ms = 500;
+  is_running = false;
 }
 
 /**
-  * @brief  폴링 방식으로 ADC1의 Raw 값을 읽어 반환
-  * @retval 12비트 ADC 변환 결과값 (0 ~ 4095)
+  * @brief  가변 주기로 인터럽트 기반 ADC 온도 샘플링 시작
+  * @param  interval_ms: 샘플링 주기 (ms 단위, 0 입력 시 기본값 500ms(0.5초) 적용)
   */
-uint32_t adcReadRaw(void)
+void adcStartIT(uint32_t interval_ms)
 {
-  uint32_t adc_val = 0;
-
-  HAL_ADC_Start(&hadc1);
-  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK)
+  if (interval_ms > 0)
   {
-    adc_val = HAL_ADC_GetValue(&hadc1);
+    sample_interval_ms = interval_ms;
   }
-  HAL_ADC_Stop(&hadc1);
+  else
+  {
+    sample_interval_ms = 500; /* 기본 0.5초 */
+  }
 
-  return adc_val;
+  is_running = true;
+  last_trigger_tick = HAL_GetTick() - sample_interval_ms; /* 즉시 첫 변환 시작 */
 }
 
 /**
-  * @brief  내부 온도 센서 ADC 값을 읽어 섭씨 온도(°C)로 환산
-  * @retval 섭씨 온도 (°C)
+  * @brief  샘플링 주기 변경
+  * @param  interval_ms: 새 샘플링 주기 (ms)
   */
-float adcReadTemp(void)
+void adcSetInterval(uint32_t interval_ms)
 {
-  uint32_t raw = adcReadRaw();
-  float vsense_mv = ((float)raw * VREF_MV) / ADC_MAX_VAL;
-  float temperature = ((vsense_mv - V25_MV) / AVG_SLOPE) + 25.0f;
+  if (interval_ms > 0)
+  {
+    sample_interval_ms = interval_ms;
+  }
+}
 
-  return temperature;
+/**
+  * @brief  메인 루프에서 주기적으로 호출되어:
+  *         1) 인터럽트에서 수신된 Raw 데이터를 기반으로 온도 계산 수행 (flag 기반)
+  *         2) 설정된 주기마다 다음 ADC 인터럽트 변환 트리거
+  */
+void adcUpdate(void)
+{
+  if (!is_running)
+    return;
+
+  /* 1. 인터럽트 콜백에서 변환 완료 플래그가 설정된 경우 메인 컨텍스트에서 온도 계산 */
+  if (is_conv_done)
+  {
+    is_conv_done = false;
+
+    float vsense_mv = ((float)adc_raw_val * VREF_MV) / ADC_MAX_VAL;
+    calculated_temp = ((vsense_mv - V25_MV) / AVG_SLOPE) + 25.0f;
+    temp_updated_flag = true;
+  }
+
+  /* 2. 설정된 주기(기본 0.5초)마다 다음 ADC 인터럽트 변환 트리거 */
+  if (HAL_GetTick() - last_trigger_tick >= sample_interval_ms)
+  {
+    last_trigger_tick = HAL_GetTick();
+    HAL_ADC_Start_IT(&hadc1);
+  }
+}
+
+uint32_t adcGetRaw(void)
+{
+  return adc_raw_val;
+}
+
+float adcGetTemp(void)
+{
+  return calculated_temp;
+}
+
+bool adcIsUpdated(void)
+{
+  if (temp_updated_flag)
+  {
+    temp_updated_flag = false;
+    return true;
+  }
+  return false;
+}
+
+/**
+  * @brief  ADC 변환 완료 인터럽트 콜백 함수 (ISR 컨텍스트)
+  *         데이터 저장 및 flag 설정만 빠르게 수행하고 복귀
+  */
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+  if (hadc->Instance == ADC1)
+  {
+    adc_raw_val = HAL_ADC_GetValue(hadc);
+    is_conv_done = true; /* 변환 완료 플래그 설정 */
+  }
 }
