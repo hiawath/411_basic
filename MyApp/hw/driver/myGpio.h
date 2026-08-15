@@ -2,4 +2,4 @@
 
 #include "main.h"
 
-void myGpioInit(void);
+void gpioInit(void);

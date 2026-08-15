@@ -1,6 +1,9 @@
 #include "myHw.h"
 
-void myHwInit(void)
+void hwInit(void)
 {
-  myGpioInit();
+  gpioInit();
+  uartInit();
+  i2cInit();
+  ssd1306Init();
 }

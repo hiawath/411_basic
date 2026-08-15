@@ -1,6 +1,6 @@
 #include "myGpio.h"
 
-void myGpioInit(void)
+void gpioInit(void)
 {
   // 필요한 GPIO 초기화가 있을 경우 여기에 작성
 }
