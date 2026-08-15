@@ -7,4 +7,5 @@ void hwInit(void)
   i2cInit();
   ssd1306Init();
   adcInit();
+  ds1302Init();
 }
