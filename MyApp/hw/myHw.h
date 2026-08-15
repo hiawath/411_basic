@@ -7,5 +7,7 @@
 #include "mySsd1306.h"
 #include "myAdc.h"
 #include "myDs1302.h"
+#include "myDht11.h"
+#include "myHcSr04.h"
 
 void hwInit(void);

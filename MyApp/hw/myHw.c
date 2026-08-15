@@ -8,4 +8,6 @@ void hwInit(void)
   ssd1306Init();
   adcInit();
   ds1302Init();
+  dht11Init();
+  hcSr04Init();
 }

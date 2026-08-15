@@ -1,10 +1,16 @@
 #include "myAdc.h"
 
-/* STM32F411 내부 온도 센서 파라미터 (데이터시트 기준) */
-#define V25_MV       760.0f  /* 25도에서의 센서 전압: 약 0.76V (760mV) */
-#define AVG_SLOPE    2.5f    /* 전압-온도 기울기: 2.5 mV/°C */
-#define VREF_MV      3300.0f /* ADC 기준 전압: 3.3V (3300mV) */
-#define ADC_MAX_VAL  4095.0f /* 12비트 ADC 최대값 */
+/* STM32F411 팩토리 캘리브레이션 값 주소 (3.3V 기준 공장 측정치) */
+#define TS_CAL1_ADDR             ((uint16_t *)0x1FFF7A2C) /* 30°C 측정값 */
+#define TS_CAL2_ADDR             ((uint16_t *)0x1FFF7A2E) /* 110°C 측정값 */
+#define TS_CAL1_TEMP             30.0f
+#define TS_CAL2_TEMP             110.0f
+
+/* 데이터시트 표준 파라미터 (Fallback용) */
+#define V25_MV                   760.0f  /* 25도에서의 전압: 약 0.76V (760mV) */
+#define AVG_SLOPE                2.5f    /* 전압-온도 기울기: 2.5 mV/°C */
+#define VREF_MV                  3300.0f /* ADC 기준 전압: 3.3V */
+#define ADC_MAX_VAL              4095.0f /* 12비트 ADC 최대값 */
 
 /* DMA 전송용 버퍼 (Half-Word / 16비트 정렬) */
 static uint16_t adc_dma_buf = 0;
@@ -65,7 +71,7 @@ void adcSetInterval(uint32_t interval_ms)
 
 /**
   * @brief  메인 루프에서 주기적으로 호출되어:
-  *         1) DMA 완료 플래그를 확인하여 온도 계산 수행
+  *         1) DMA 완료 플래그 확인 시 팩토리 보정 공식을 이용해 정확한 온도 계산
   *         2) 설정된 주기마다 DMA 변환 트리거
   */
 void adcUpdate(void)
@@ -78,8 +84,22 @@ void adcUpdate(void)
   {
     is_conv_done = false;
 
-    float vsense_mv = ((float)adc_raw_val * VREF_MV) / ADC_MAX_VAL;
-    calculated_temp = ((vsense_mv - V25_MV) / AVG_SLOPE) + 25.0f;
+    uint16_t ts_cal1 = *TS_CAL1_ADDR;
+    uint16_t ts_cal2 = *TS_CAL2_ADDR;
+
+    /* 팩토리 캘리브레이션 유효성 확인 */
+    if (ts_cal2 > ts_cal1 && ts_cal1 > 0 && ts_cal2 < 4096)
+    {
+      /* ST 공식 팩토리 캘리브레이션 온도 보정 공식 */
+      calculated_temp = ((TS_CAL2_TEMP - TS_CAL1_TEMP) * ((float)adc_raw_val - (float)ts_cal1)) / (float)(ts_cal2 - ts_cal1) + TS_CAL1_TEMP;
+    }
+    else
+    {
+      /* 표준 데이터시트 공식 (Fallback) */
+      float vsense_mv = ((float)adc_raw_val * VREF_MV) / ADC_MAX_VAL;
+      calculated_temp = ((vsense_mv - V25_MV) / AVG_SLOPE) + 25.0f;
+    }
+
     temp_updated_flag = true;
   }
 
