@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 void adcInit(void);
-void adcStartIT(uint32_t interval_ms);
+void adcStartDMA(uint32_t interval_ms);
 void adcSetInterval(uint32_t interval_ms);
 void adcUpdate(void);
 

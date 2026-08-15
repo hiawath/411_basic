@@ -6,7 +6,10 @@
 #define VREF_MV      3300.0f /* ADC 기준 전압: 3.3V (3300mV) */
 #define ADC_MAX_VAL  4095.0f /* 12비트 ADC 최대값 */
 
-/* 인터럽트(ISR)와 메인 루프 간 공유 변수 */
+/* DMA 전송용 버퍼 (Half-Word / 16비트 정렬) */
+static uint16_t adc_dma_buf = 0;
+
+/* DMA 인터럽트와 메인 루프 간 공유 변수 */
 static volatile uint32_t adc_raw_val = 0;
 static volatile bool is_conv_done = false;
 
@@ -20,6 +23,7 @@ static bool is_running = false;
 
 void adcInit(void)
 {
+  adc_dma_buf = 0;
   adc_raw_val = 0;
   is_conv_done = false;
   calculated_temp = 0.0f;
@@ -29,10 +33,10 @@ void adcInit(void)
 }
 
 /**
-  * @brief  가변 주기로 인터럽트 기반 ADC 온도 샘플링 시작
+  * @brief  가변 주기로 DMA 기반 ADC 온도 샘플링 시작
   * @param  interval_ms: 샘플링 주기 (ms 단위, 0 입력 시 기본값 500ms(0.5초) 적용)
   */
-void adcStartIT(uint32_t interval_ms)
+void adcStartDMA(uint32_t interval_ms)
 {
   if (interval_ms > 0)
   {
@@ -61,15 +65,15 @@ void adcSetInterval(uint32_t interval_ms)
 
 /**
   * @brief  메인 루프에서 주기적으로 호출되어:
-  *         1) 인터럽트에서 수신된 Raw 데이터를 기반으로 온도 계산 수행 (flag 기반)
-  *         2) 설정된 주기마다 다음 ADC 인터럽트 변환 트리거
+  *         1) DMA 완료 플래그를 확인하여 온도 계산 수행
+  *         2) 설정된 주기마다 DMA 변환 트리거
   */
 void adcUpdate(void)
 {
   if (!is_running)
     return;
 
-  /* 1. 인터럽트 콜백에서 변환 완료 플래그가 설정된 경우 메인 컨텍스트에서 온도 계산 */
+  /* 1. DMA 완료 플래그가 설정된 경우 메인 컨텍스트에서 온도 계산 */
   if (is_conv_done)
   {
     is_conv_done = false;
@@ -79,11 +83,11 @@ void adcUpdate(void)
     temp_updated_flag = true;
   }
 
-  /* 2. 설정된 주기(기본 0.5초)마다 다음 ADC 인터럽트 변환 트리거 */
+  /* 2. 설정된 주기(기본 0.5초)마다 다음 DMA 변환 트리거 */
   if (HAL_GetTick() - last_trigger_tick >= sample_interval_ms)
   {
     last_trigger_tick = HAL_GetTick();
-    HAL_ADC_Start_IT(&hadc1);
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&adc_dma_buf, 1);
   }
 }
 
@@ -108,14 +112,14 @@ bool adcIsUpdated(void)
 }
 
 /**
-  * @brief  ADC 변환 완료 인터럽트 콜백 함수 (ISR 컨텍스트)
-  *         데이터 저장 및 flag 설정만 빠르게 수행하고 복귀
+  * @brief  ADC DMA 변환 완료 시 호출되는 콜백 함수 (ISR 컨텍스트)
+  *         DMA 버퍼 데이터 저장 및 flag 설정만 수행
   */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
   if (hadc->Instance == ADC1)
   {
-    adc_raw_val = HAL_ADC_GetValue(hadc);
+    adc_raw_val = adc_dma_buf;
     is_conv_done = true; /* 변환 완료 플래그 설정 */
   }
 }
