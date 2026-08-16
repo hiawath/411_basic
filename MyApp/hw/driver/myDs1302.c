@@ -241,16 +241,14 @@ void ds1302Init(void)
   /* Write Protect 해제 */
   ds1302WriteReg(DS1302_REG_WP, 0x00);
 
-  /* Clock Halt(CH) 확인 및 해제 */
+  /* Clock Halt(CH) 비트 확인 (SEC 레지스터 bit7)
+   * CH=1: 오실레이터 정지 상태 (배터리 방전 또는 최초 기동) → 빌드 시간으로 초기화
+   * CH=0: 오실레이터 정상 동작 중 → 기존 시간 유지 */
   uint8_t sec = ds1302ReadReg(DS1302_REG_SEC);
   if (sec & 0x80)
   {
-    /* 오실레이터가 정지되어 있다면 빌드 시간으로 초기화 */
     ds1302SetBuildTime();
   }
-  else
-  {
-    /* 항상 빌드 시점의 날짜/시간으로 갱신되도록 설정 */
-    ds1302SetBuildTime();
-  }
+  //ds1302SetBuildTime();
+  /* else: RTC가 이미 정상 동작 중이므로 시간을 덮어쓰지 않음 */
 }
