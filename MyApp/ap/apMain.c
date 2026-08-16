@@ -17,7 +17,14 @@ void apMain(void)
   /* DMA 방식 ADC 내부 온도 측정 시작 (샘플링 주기: 500ms) */
   adcStartDMA(500);
 
-  uint32_t prev_100ms_tick = HAL_GetTick();
+  /* LCD1602 초기 화면 출력 */
+  lcd1602Clear();
+  lcd1602Cursor(0, 0);
+  lcd1602Print("HC-SR04 Distance");
+  lcd1602Cursor(1, 0);
+  lcd1602Print("Dist:    0.0 cm ");
+
+  uint32_t prev_200ms_tick = HAL_GetTick();
   uint32_t prev_1s_tick = HAL_GetTick();
   uint32_t uptime_sec = 0;
   char str_buf[32];
@@ -31,19 +38,22 @@ void apMain(void)
     /* ADC 샘플링 주기 관리 및 DMA 완료 시 내부 온도 계산 */
     adcUpdate();
 
-    /* 1. 100ms마다 HC-SR04 초음파 거리 측정 및 화면의 거리 표시 갱신 */
-    if (HAL_GetTick() - prev_100ms_tick >= 100)
+    /* 1. 200ms마다 HC-SR04 초음파 거리 측정 및 LCD1602 화면 갱신 */
+    if (HAL_GetTick() - prev_200ms_tick >= 200)
     {
-      prev_100ms_tick = HAL_GetTick();
+      prev_200ms_tick = HAL_GetTick();
 
       /* 거리 측정 수행 */
-      hcSr04Read(&distance_cm);
-
-      /* 거리 & 습도 표시 영역(y=51) 갱신 */
-      ssd1306FillRect(6, 51, 116, 9, SSD1306_COLOR_BLACK);
-      snprintf(str_buf, sizeof(str_buf), "D:%.1fcm|H:%.0f%%", distance_cm, dht_data.humidity);
-      ssd1306DrawString(6, 51, str_buf, SSD1306_COLOR_WHITE);
-      ssd1306Update();
+      if (hcSr04Read(&distance_cm))
+      {
+        lcd1602Cursor(1, 0);
+        lcd1602Printf("Dist: %6.1f cm ", distance_cm);
+      }
+      else
+      {
+        lcd1602Cursor(1, 0);
+        lcd1602Printf("Dist:  ---.- cm ");
+      }
     }
 
     /* 2. 1초마다 RTC 시계, DHT11 온습도 센서 읽기 및 디스플레이/UART 갱신 */
@@ -77,6 +87,11 @@ void apMain(void)
       ssd1306FillRect(6, 39, 116, 9, SSD1306_COLOR_BLACK);
       snprintf(str_buf, sizeof(str_buf), "T: %.1f / %.1f C", int_temp, dht_data.temperature);
       ssd1306DrawString(6, 39, str_buf, SSD1306_COLOR_WHITE);
+
+      /* SSD1306 습도 표시 (y=51) */
+      ssd1306FillRect(6, 51, 116, 9, SSD1306_COLOR_BLACK);
+      snprintf(str_buf, sizeof(str_buf), "Humidity: %.1f %%", dht_data.humidity);
+      ssd1306DrawString(6, 51, str_buf, SSD1306_COLOR_WHITE);
 
       ssd1306Update();
 

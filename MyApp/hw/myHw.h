@@ -9,5 +9,6 @@
 #include "myDs1302.h"
 #include "myDht11.h"
 #include "myHcSr04.h"
+#include "myLcd1602.h"
 
 void hwInit(void);

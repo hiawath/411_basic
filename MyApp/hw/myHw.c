@@ -10,4 +10,5 @@ void hwInit(void)
   ds1302Init();
   dht11Init();
   hcSr04Init();
+  lcd1602Init();
 }
