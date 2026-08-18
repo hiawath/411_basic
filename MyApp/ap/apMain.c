@@ -1,6 +1,7 @@
 #include "apMain.h"
 #include "myAdc.h"
 #include "myUart.h"
+#include "stm32f411xe.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_adc.h"
 
@@ -9,17 +10,21 @@
 #include <stdio.h>
 #include <string.h>
 
+
 extern ADC_HandleTypeDef hadc1;
 void apInit(void) { 
   uartInit();
-  HAL_ADC_Start_IT(&hadc1);
+  adcInit();
+  
 }
 
-uint32_t adc_multi_values[3] = {0, 0, 0};
+float internal_temp=0;
 
 void apMain(void) {
 
   while (1) {
+    adcUpdate();
+    internal_temp=adcGetTemp();
     HAL_Delay(10);
   }
 }
