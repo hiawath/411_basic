@@ -50,3 +50,17 @@ uint32_t Adc_Ch4(void){
   HAL_ADC_Stop(&hadc1);
   return temp_Adc;
 }
+
+extern uint32_t adc_multi_values[3];
+volatile uint8_t  adc_idx = 0;
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+
+  adc_multi_values[adc_idx] =HAL_ADC_GetValue(&hadc1);
+  adc_idx++;
+  if(adc_idx>=3)
+  {
+    adc_idx=0;
+    
+  }
+  HAL_ADC_Start_IT(&hadc1);
+}
