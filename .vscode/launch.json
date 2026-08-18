@@ -17,7 +17,12 @@
                 {
                     "imageFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}"
                 }
-            ]
+            ],
+             /* --- Live Watch 활성화를 위한 추가 설정 --- */
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": "4"
+            },
         }
     ]
 }

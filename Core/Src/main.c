@@ -19,30 +19,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_uart.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#ifdef __GNUC__
-  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif
+#include "apMain.h"
 
-PUTCHAR_PROTOTYPE
-{
-  /* Polling 방식으로 1바이트 전송 (전송 완료될 때까지 대기) */
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
-  return ch;
-}
-#define RX_BUF_SIZE 128
-uint8_t rx_data;
-uint8_t rx_buf[RX_BUF_SIZE];
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,44 +59,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-
-  if(GPIO_Pin==GPIO_PIN_13){
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-  }
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-
-  if(huart->Instance==USART2){
-    if(rx_data=='a')
-      printf("Hello STM32 Cortex-M4 USART Polling!\r\n");
-    else
-      HAL_UART_Transmit(&huart2, rx_buf, RX_BUF_SIZE, 100);
-
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buf, RX_BUF_SIZE);
-  }
-}
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-  if(huart->Instance==USART2){
-    if(rx_data=='a')
-      printf("Hello STM32 Cortex-M4 USART Polling!\r\n");
-    else
-      HAL_UART_Transmit(&huart2, rx_buf, Size, 100);
-
-    HAL_UART_DMAStop(&huart2);
-    memset(rx_buf,0,Size);
-  }
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buf, RX_BUF_SIZE);
-
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart){
-  HAL_UART_Receive_DMA(&huart2, rx_buf, RX_BUF_SIZE);
-}
-
 
 
 /* USER CODE END 0 */
@@ -148,8 +95,8 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
- //HAL_UART_Receive_IT(&huart2, &rx_data, 1);
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buf, RX_BUF_SIZE);
+  apInit();
+  apMain();
 
   /* USER CODE END 2 */
 
