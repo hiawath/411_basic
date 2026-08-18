@@ -17,9 +17,19 @@ uint32_t adc_multi_values[3] = {0, 0, 0};
 void apMain(void) {
 
   while (1) {
-    adc_multi_values[0]=Adc_Ch0();
-    adc_multi_values[1]=Adc_Ch1();
-    adc_multi_values[2]=Adc_Ch4();
+      HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 100);
+    adc_multi_values[0]=HAL_ADC_GetValue(&hadc1);
+
+    HAL_ADC_PollForConversion(&hadc1, 100);
+    adc_multi_values[1]=HAL_ADC_GetValue(&hadc1);
+
+    HAL_ADC_PollForConversion(&hadc1, 100);
+    adc_multi_values[2]=HAL_ADC_GetValue(&hadc1);
+
+    HAL_ADC_Stop(&hadc1);
+
+
     HAL_Delay(500);
   }
 }
