@@ -3,52 +3,62 @@
 /* TIM4 핸들러 (PB6, TIM4_CH1 제어용) */
 TIM_HandleTypeDef htim4;
 
-static uint8_t s_duty_led1 = 0;
-static uint8_t s_duty_led2 = 0;
-static uint8_t s_duty_led3 = 0;
+/**
+ * @brief LED 채널 관리 구조체
+ */
+typedef struct {
+  TIM_HandleTypeDef *htim;          /* 연결된 타이머 핸들 포인터 */
+  uint32_t           channel;       /* 타이머 채널 (TIM_CHANNEL_1 ~ 4) */
+  uint32_t           period_ms;     /* 브리딩 주기 (ms) */
+  uint32_t           offset_ms;     /* 시작 시간차 오프셋 (ms) */
+  bool               breath_enable; /* 브리딩 활성화 여부 */
+  uint8_t            current_duty;  /* 현재 듀티비 (0~100%) */
+} ledChannel_t;
 
 /**
- * @brief  TIM3 CH2 (PA7) 하드웨어 핀 및 채널 보조 초기화
+ * @brief 하드웨어 매핑 및 상태 관리 테이블
+ *        신규 LED 추가 시 이 테이블에 1행만 추가하면 드라이버 전체가 자동 확장됩니다.
  */
-static void timerCh2HardwareInit(void)
+static ledChannel_t s_led_table[LED_MAX_COUNT] = {
+  [LED_1] = { &htim3, TIM_CHANNEL_1, 3000,    0, true, 0 }, /* PA6: 3초 주기, 0초 시작 */
+  [LED_2] = { &htim3, TIM_CHANNEL_2, 3000, 1000, true, 0 }, /* PA7: 3초 주기, 1초 뒤 시작 */
+  [LED_3] = { &htim4, TIM_CHANNEL_1, 3000, 2000, true, 0 }, /* PB6: 3초 주기, 2초 뒤 시작 */
+};
+
+/**
+ * @brief TIM3 CH2 (PA7) 및 TIM4 CH1 (PB6) 하드웨어 자동 안전 초기화
+ */
+static void timerHardwareAutoInit(void)
 {
+  /* 1. TIM3 CH2 (PA7) 설정 */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  GPIO_InitTypeDef GPIO_InitStructA = {0};
+  GPIO_InitStructA.Pin = GPIO_PIN_7;
+  GPIO_InitStructA.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStructA.Pull = GPIO_NOPULL;
+  GPIO_InitStructA.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStructA.Alternate = GPIO_AF2_TIM3;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStructA);
 
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  GPIO_InitStruct.Pin = GPIO_PIN_7;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  TIM_OC_InitTypeDef sConfigOC3 = {0};
+  sConfigOC3.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC3.Pulse = 0;
+  sConfigOC3.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC3.OCFastMode = TIM_OCFAST_DISABLE;
+  HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC3, TIM_CHANNEL_2);
 
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2);
-}
-
-/**
- * @brief  TIM4 CH1 (PB6) 하드웨어 및 타이머 PWM 초기화
- */
-static void timer4HardwareInit(void)
-{
-  /* 클럭 활성화 */
+  /* 2. TIM4 CH1 (PB6) 설정 */
   __HAL_RCC_TIM4_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /* PB6 -> TIM4_CH1 설정 */
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  GPIO_InitTypeDef GPIO_InitStructB = {0};
+  GPIO_InitStructB.Pin = GPIO_PIN_6;
+  GPIO_InitStructB.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStructB.Pull = GPIO_NOPULL;
+  GPIO_InitStructB.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStructB.Alternate = GPIO_AF2_TIM4;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStructB);
 
-  /* TIM4 기본 PWM 설정 (1kHz 주파수: 84MHz / 84 / 1000 = 1kHz) */
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 84 - 1;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -57,242 +67,166 @@ static void timer4HardwareInit(void)
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   HAL_TIM_PWM_Init(&htim4);
 
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+  TIM_OC_InitTypeDef sConfigOC4 = {0};
+  sConfigOC4.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC4.Pulse = 0;
+  sConfigOC4.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC4.OCFastMode = TIM_OCFAST_DISABLE;
+  HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC4, TIM_CHANNEL_1);
 }
 
 /**
- * @brief  3개의 타이머 채널 (PA6, PA7, PB6) PWM 초기화 및 출력 시작
+ * @brief  테이블에 등록된 모든 LED 타이머 PWM 초기화 및 시작
  */
 void timerInit(void)
 {
-  /* TIM3 CH2 (PA7) 및 TIM4 CH1 (PB6) 하드웨어 설정 */
-  timerCh2HardwareInit();
-  timer4HardwareInit();
+  timerHardwareAutoInit();
 
-  /* 모든 채널 PWM 시작 */
-  timerPwmStart(LED_1);
-  timerPwmStart(LED_2);
-  timerPwmStart(LED_3);
-
-  /* 초기 듀티 0% */
-  timerSetDuty(LED_1, 0);
-  timerSetDuty(LED_2, 0);
-  timerSetDuty(LED_3, 0);
+  for (int i = 0; i < LED_MAX_COUNT; i++)
+  {
+    if (s_led_table[i].htim != NULL)
+    {
+      HAL_TIM_PWM_Start(s_led_table[i].htim, s_led_table[i].channel);
+      timerSetDuty((ledId_t)i, 0.0f);
+    }
+  }
 }
 
 /**
  * @brief  특정 LED PWM 출력 시작
  */
-void timerPwmStart(uint8_t led_id)
+void timerPwmStart(ledId_t id)
 {
-  if (led_id == LED_1)
+  if (id < LED_MAX_COUNT && s_led_table[id].htim != NULL)
   {
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  }
-  else if (led_id == LED_2)
-  {
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  }
-  else if (led_id == LED_3)
-  {
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(s_led_table[id].htim, s_led_table[id].channel);
   }
 }
 
 /**
  * @brief  특정 LED PWM 출력 정지
  */
-void timerPwmStop(uint8_t led_id)
+void timerPwmStop(ledId_t id)
 {
-  if (led_id == LED_1)
+  if (id < LED_MAX_COUNT && s_led_table[id].htim != NULL)
   {
-    HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1);
-  }
-  else if (led_id == LED_2)
-  {
-    HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
-  }
-  else if (led_id == LED_3)
-  {
-    HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Stop(s_led_table[id].htim, s_led_table[id].channel);
   }
 }
 
 /**
- * @brief  특정 LED 밝기(듀티비) 설정 (0% ~ 100%)
+ * @brief  특정 LED의 밝기(듀티비) 직접 설정 (0.0% ~ 100.0%)
  */
-void timerSetDuty(uint8_t led_id, uint8_t duty_percent)
+void timerSetDuty(ledId_t id, float duty_percent)
 {
-  if (duty_percent > 100)
+  if (id >= LED_MAX_COUNT || s_led_table[id].htim == NULL)
   {
-    duty_percent = 100;
+    return;
   }
 
-  if (led_id == LED_1)
-  {
-    s_duty_led1 = duty_percent;
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim3) + 1;
-    uint32_t pulse = (period * duty_percent) / 100;
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulse);
-  }
-  else if (led_id == LED_2)
-  {
-    s_duty_led2 = duty_percent;
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim3) + 1;
-    uint32_t pulse = (period * duty_percent) / 100;
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pulse);
-  }
-  else if (led_id == LED_3)
-  {
-    s_duty_led3 = duty_percent;
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim4) + 1;
-    uint32_t pulse = (period * duty_percent) / 100;
-    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, pulse);
-  }
+  if (duty_percent < 0.0f) duty_percent = 0.0f;
+  if (duty_percent > 100.0f) duty_percent = 100.0f;
+
+  s_led_table[id].current_duty = (uint8_t)(duty_percent + 0.5f);
+
+  uint32_t period = __HAL_TIM_GET_AUTORELOAD(s_led_table[id].htim) + 1;
+  uint32_t pulse = (uint32_t)((float)period * (duty_percent / 100.0f));
+
+  __HAL_TIM_SET_COMPARE(s_led_table[id].htim, s_led_table[id].channel, pulse);
 }
-
-/**
- * @brief  특정 LED 밝기(듀티비) 설정 - 정밀 float (0.0% ~ 100.0%)
- */
-void timerSetDutyFloat(uint8_t led_id, float duty_percent)
-{
-  if (duty_percent < 0.0f)
-  {
-    duty_percent = 0.0f;
-  }
-  if (duty_percent > 100.0f)
-  {
-    duty_percent = 100.0f;
-  }
-
-  if (led_id == LED_1)
-  {
-    s_duty_led1 = (uint8_t)(duty_percent + 0.5f);
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim3) + 1;
-    uint32_t pulse = (uint32_t)((float)period * (duty_percent / 100.0f));
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulse);
-  }
-  else if (led_id == LED_2)
-  {
-    s_duty_led2 = (uint8_t)(duty_percent + 0.5f);
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim3) + 1;
-    uint32_t pulse = (uint32_t)((float)period * (duty_percent / 100.0f));
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pulse);
-  }
-  else if (led_id == LED_3)
-  {
-    s_duty_led3 = (uint8_t)(duty_percent + 0.5f);
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim4) + 1;
-    uint32_t pulse = (uint32_t)((float)period * (duty_percent / 100.0f));
-    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, pulse);
-  }
-}
-
-void timerSetDutyLed1(uint8_t duty_percent) { timerSetDuty(LED_1, duty_percent); }
-void timerSetDutyLed2(uint8_t duty_percent) { timerSetDuty(LED_2, duty_percent); }
-void timerSetDutyLed3(uint8_t duty_percent) { timerSetDuty(LED_3, duty_percent); }
 
 /**
  * @brief  현재 설정된 특정 LED의 PWM 듀티비(%) 반환
  */
-uint8_t timerGetDuty(uint8_t led_id)
+uint8_t timerGetDuty(ledId_t id)
 {
-  if (led_id == LED_1) return s_duty_led1;
-  if (led_id == LED_2) return s_duty_led2;
-  if (led_id == LED_3) return s_duty_led3;
+  if (id < LED_MAX_COUNT)
+  {
+    return s_led_table[id].current_duty;
+  }
   return 0;
 }
 
 /**
- * @brief  감마 보정 듀티비 계산 내부 함수
+ * @brief  특정 LED의 브리딩 파라미터 동적 설정
+ */
+void timerSetBreathParam(ledId_t id, uint32_t period_ms, uint32_t offset_ms, bool enable)
+{
+  if (id < LED_MAX_COUNT)
+  {
+    s_led_table[id].period_ms = period_ms;
+    s_led_table[id].offset_ms = offset_ms;
+    s_led_table[id].breath_enable = enable;
+  }
+}
+
+/**
+ * @brief  등록된 모든 LED를 N등분 균등 위상차로 일괄 설정하는 헬퍼 함수
+ */
+void timerSetBreathTrio(uint32_t period_ms)
+{
+  for (int i = 0; i < LED_MAX_COUNT; i++)
+  {
+    uint32_t offset = (period_ms * i) / LED_MAX_COUNT;
+    timerSetBreathParam((ledId_t)i, period_ms, offset, true);
+  }
+}
+
+/**
+ * @brief  감마 2.0 보정 듀티비 계산 내부 헬퍼
  */
 static float calculateBreathDuty(uint32_t current_time_in_period, uint32_t period_ms)
 {
+  if (period_ms == 0) return 0.0f;
+
   uint32_t half_period = period_ms / 2;
   float normalized_progress;
 
   if (current_time_in_period < half_period)
   {
+    /* 전반부 (0.0 -> 1.0) */
     normalized_progress = (float)current_time_in_period / (float)half_period;
   }
   else
   {
+    /* 후반부 (1.0 -> 0.0) */
     normalized_progress = 1.0f - ((float)(current_time_in_period - half_period) / (float)half_period);
   }
 
+  /* 감마 2.0 곡선 (자연스러운 시각 인지 보정) */
   return (normalized_progress * normalized_progress * 100.0f);
 }
 
 /**
- * @brief  [3중 순차 파도 브리딩 (120도 위상차)]
- *         3초(3000ms) 주기로 LED1, LED2, LED3가 각각 1초(1000ms)씩 시차를 두고 순차 물결 이동
+ * @brief  메인 루프에서 1번만 호출하는 일괄 브리딩 업데이트 함수
+ *         모든 등록된 LED를 루프로 일괄 계산 및 하드웨어 출력
  */
-void timerLedBreath(void)
-{
-  timerLedBreathTrio();
-}
-
-void timerLedBreathTrio(void)
-{
-  /* 3000ms 주기: LED1(0ms 시차), LED2(1000ms 시차), LED3(2000ms 시차) */
-  timerLedBreathCustom(3000, 0, 1000, 2000);
-}
-
-/**
- * @brief  [사용자 지정 3채널 시간차 브리딩]
- */
-void timerLedBreathCustom(uint32_t period_ms, uint32_t offset1_ms, uint32_t offset2_ms, uint32_t offset3_ms)
+void timerLedUpdate(void)
 {
   static uint32_t last_tick = 0;
   static uint32_t elapsed_time = 0;
 
-  if (period_ms == 0) return;
-
   uint32_t now = HAL_GetTick();
   uint32_t dt = now - last_tick;
 
+  /* 10ms 단위 (100Hz) 미세 갱신 */
   if (dt >= 10)
   {
     last_tick = now;
-    elapsed_time = (elapsed_time + dt) % period_ms;
+    elapsed_time += dt;
 
-    uint32_t t1 = (elapsed_time + offset1_ms) % period_ms;
-    uint32_t t2 = (elapsed_time + offset2_ms) % period_ms;
-    uint32_t t3 = (elapsed_time + offset3_ms) % period_ms;
+    for (int i = 0; i < LED_MAX_COUNT; i++)
+    {
+      if (!s_led_table[i].breath_enable || s_led_table[i].period_ms == 0)
+      {
+        continue;
+      }
 
-    timerSetDutyFloat(LED_1, calculateBreathDuty(t1, period_ms));
-    timerSetDutyFloat(LED_2, calculateBreathDuty(t2, period_ms));
-    timerSetDutyFloat(LED_3, calculateBreathDuty(t3, period_ms));
-  }
-}
+      /* 개별 LED의 주기 내 경과 시간 계산 */
+      uint32_t t = (elapsed_time + s_led_table[i].offset_ms) % s_led_table[i].period_ms;
+      float duty = calculateBreathDuty(t, s_led_table[i].period_ms);
 
-/**
- * @brief  [3개 독립 주기 브리딩]
- *         LED 3개가 각각 서로 다른 독립된 주기(속도)로 완전히 따로 호흡(Breathing)
- */
-void timerLedBreathIndependent(uint32_t period1_ms, uint32_t period2_ms, uint32_t period3_ms)
-{
-  static uint32_t last_tick = 0;
-  static uint32_t t1 = 0, t2 = 0, t3 = 0;
-
-  uint32_t now = HAL_GetTick();
-  uint32_t dt = now - last_tick;
-
-  if (dt >= 10)
-  {
-    last_tick = now;
-
-    if (period1_ms > 0) t1 = (t1 + dt) % period1_ms;
-    if (period2_ms > 0) t2 = (t2 + dt) % period2_ms;
-    if (period3_ms > 0) t3 = (t3 + dt) % period3_ms;
-
-    timerSetDutyFloat(LED_1, calculateBreathDuty(t1, period1_ms));
-    timerSetDutyFloat(LED_2, calculateBreathDuty(t2, period2_ms));
-    timerSetDutyFloat(LED_3, calculateBreathDuty(t3, period3_ms));
+      timerSetDuty((ledId_t)i, duty);
+    }
   }
 }

@@ -37,12 +37,8 @@ void apMain(void)
 
   while (1)
   {
-    /* 3개 LED(PA6, PA7, PB6) 순차 파도 브리딩 (120도 위상차, 1초 간격 시차) */
-    timerLedBreath();
-
-    /* [옵션 1] 각자 다른 속도로 완전히 독립 호흡을 원할 경우:
-       timerLedBreathIndependent(1500, 2500, 3500); // 1.5초, 2.5초, 3.5초 주기
-    */
+    /* 테이블에 등록된 모든 LED 브리딩 일괄 업데이트 (100Hz 주기 처리) */
+    timerLedUpdate();
 
     /* ADC 샘플링 주기 관리 및 DMA 완료 시 내부 온도 계산 */
     adcUpdate();
