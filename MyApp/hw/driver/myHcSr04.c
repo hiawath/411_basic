@@ -1,4 +1,6 @@
 #include "myHcSr04.h"
+#include "myTimer.h"
+#include "bsp.h"
 
 static float s_latest_distance = 0.0f;
 
@@ -8,25 +10,11 @@ static volatile uint32_t s_t_falling = 0;
 static volatile bool     s_is_rising = true;
 static volatile bool     s_capture_done = false;
 
-/* 마이크로초 딜레이 (DWT 기반) */
-static void delayUs(uint32_t us)
-{
-  uint32_t start = DWT->CYCCNT;
-  uint32_t ticks = us * (SystemCoreClock / 1000000);
-  while ((DWT->CYCCNT - start) < ticks);
-}
-
-#include "myTimer.h"
-
 /**
  * @brief  HC-SR04 초음파 센서 드라이버 초기화
  */
 void hcSr04Init(void)
 {
-  /* DWT 사이클 카운터 활성화 */
-  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_TIM2_CLK_ENABLE();

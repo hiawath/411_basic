@@ -1,4 +1,5 @@
 #include "myDs1302.h"
+#include "bsp.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -22,16 +23,6 @@ static inline uint8_t decToBcd(uint8_t val)
 static inline uint8_t bcdToDec(uint8_t val)
 {
   return (uint8_t)(((val >> 4) * 10) + (val & 0x0F));
-}
-
-/* 마이크로초 딜레이 (STM32F4 84MHz 기준 소프트웨어 딜레이 루프) */
-static void delayUs(uint32_t us)
-{
-  volatile uint32_t count = us * 14;
-  while (count--)
-  {
-    __NOP();
-  }
 }
 
 static void ds1302GpioInit(void)

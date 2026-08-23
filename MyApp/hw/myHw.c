@@ -2,6 +2,7 @@
 
 void hwInit(void)
 {
+  bspInit();
   gpioInit();
   uartInit();
   i2cInit();
