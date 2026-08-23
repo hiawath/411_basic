@@ -11,4 +11,5 @@ void hwInit(void)
   dht11Init();
   hcSr04Init();
   lcd1602Init();
+  timerInit();
 }

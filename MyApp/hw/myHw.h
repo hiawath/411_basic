@@ -10,5 +10,6 @@
 #include "myDht11.h"
 #include "myHcSr04.h"
 #include "myLcd1602.h"
+#include "myTimer.h"
 
 void hwInit(void);

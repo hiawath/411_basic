@@ -17,6 +17,9 @@ void apMain(void)
   /* DMA 방식 ADC 내부 온도 측정 시작 (샘플링 주기: 500ms) */
   adcStartDMA(500);
 
+  /* PA6 (TIM3 CH1) LED PWM 밝기를 듀티 50%로 설정 */
+  timerSetDuty(50);
+
   /* LCD1602 초기 화면 출력 */
   lcd1602Clear();
   lcd1602Cursor(0, 0);
@@ -96,10 +99,10 @@ void apMain(void)
       ssd1306Update();
 
       /* UART 로그 출력 */
-      printf("[DATA] %04d-%02d-%02d (%s) %02d:%02d:%02d | Int: %.1f C | DHT11: %.1f C, %.1f %% | Dist: %.1f cm | Up: %lus\r\n",
+      printf("[DATA] %04d-%02d-%02d (%s) %02d:%02d:%02d | Int: %.1f C | DHT11: %.1f C, %.1f %% | Dist: %.1f cm | PWM: %u%% | Up: %lus\r\n",
              rtc_time.year, rtc_time.month, rtc_time.day, ds1302GetDayStr(rtc_time.day_of_week),
              rtc_time.hour, rtc_time.min, rtc_time.sec,
-             int_temp, dht_data.temperature, dht_data.humidity, distance_cm, (unsigned long)uptime_sec);
+             int_temp, dht_data.temperature, dht_data.humidity, distance_cm, timerGetDuty(), (unsigned long)uptime_sec);
     }
 
     HAL_Delay(2);
