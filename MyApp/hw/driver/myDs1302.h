@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define DS1302_RST_PIN    GPIO_PIN_0
-#define DS1302_RST_PORT   GPIOA
+#define DS1302_RST_PORT   GPIOB
 
 #define DS1302_DAT_PIN    GPIO_PIN_1
 #define DS1302_DAT_PORT   GPIOA

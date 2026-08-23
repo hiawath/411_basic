@@ -1,7 +1,7 @@
 #include "myTimer.h"
 
-/* TIM4 핸들러 (PB6, TIM4_CH1 제어용) */
-TIM_HandleTypeDef htim4;
+/* TIM4 핸들러 (Core/Src/tim.c에 정의됨) */
+extern TIM_HandleTypeDef htim4;
 
 /**
  * @brief LED 채널 관리 구조체
