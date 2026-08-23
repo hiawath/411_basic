@@ -38,6 +38,9 @@ void apMain(void)
 
   while (1)
   {
+    /* 3초 주기로 LED 밝기가 부드럽게 오르락내리락 (Breathing 효과) */
+    timerLedBreath();
+
     /* ADC 샘플링 주기 관리 및 DMA 완료 시 내부 온도 계산 */
     adcUpdate();
 
