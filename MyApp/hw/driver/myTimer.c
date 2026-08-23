@@ -230,3 +230,44 @@ void timerLedUpdate(void)
     }
   }
 }
+
+/* ============================================================================== */
+/*                     Input Capture 콜백 등록 및 디스패처                        */
+/* ============================================================================== */
+
+static timCaptureCallback_t s_tim2_callbacks[4] = {NULL, NULL, NULL, NULL};
+
+/**
+ * @brief  특정 타이머 채널에 Input Capture 콜백 등록
+ */
+void timerAttachCaptureCallback(TIM_TypeDef *instance, uint32_t channel, timCaptureCallback_t cb)
+{
+  if (instance == TIM2)
+  {
+    uint8_t ch_idx = (channel >> 2); /* TIM_CHANNEL_1(0x00)->0, CH2(0x04)->1, CH3(0x08)->2, CH4(0x0C)->3 */
+    if (ch_idx < 4)
+    {
+      s_tim2_callbacks[ch_idx] = cb;
+    }
+  }
+}
+
+/**
+ * @brief  STM32 HAL 타이머 Input Capture 통합 콜백 인터페이스
+ */
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM2)
+  {
+    uint8_t ch_idx = 0;
+    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) ch_idx = 0;
+    else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) ch_idx = 1;
+    else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) ch_idx = 2;
+    else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) ch_idx = 3;
+
+    if (s_tim2_callbacks[ch_idx] != NULL)
+    {
+      s_tim2_callbacks[ch_idx](htim);
+    }
+  }
+}

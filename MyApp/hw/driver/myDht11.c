@@ -46,6 +46,8 @@ static void dht11SetPinCapture(void)
   HAL_GPIO_Init(DHT11_PORT, &GPIO_InitStruct);
 }
 
+#include "myTimer.h"
+
 /**
  * @brief  DHT11 드라이버 초기화
  */
@@ -59,6 +61,9 @@ void dht11Init(void)
 
   dht11SetPinOutput();
   HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, GPIO_PIN_SET);
+
+  /* TIM2 CH1에 DHT11 Input Capture 콜백 등록 */
+  timerAttachCaptureCallback(TIM2, TIM_CHANNEL_1, dht11CaptureCallback);
 }
 
 /**
@@ -89,27 +94,6 @@ void dht11CaptureCallback(TIM_HandleTypeDef *htim)
   {
     HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_1);
     s_capture_done = true;
-  }
-}
-
-#include "myHcSr04.h"
-
-/**
- * @brief  STM32 HAL 타이머 Input Capture 콜백 라우팅
- *         TIM2 CH1: DHT11, TIM2 CH3: HC-SR04 Echo
- */
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
-{
-  if (htim->Instance == TIM2)
-  {
-    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
-    {
-      dht11CaptureCallback(htim);
-    }
-    else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
-    {
-      hcSr04CaptureCallback(htim);
-    }
   }
 }
 

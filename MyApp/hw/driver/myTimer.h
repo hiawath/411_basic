@@ -84,6 +84,19 @@ void timerLedUpdate(void);
 #define timerLedBreath()      timerLedUpdate()
 #define timerLedBreathTrio()  timerLedUpdate()
 
+/**
+ * @brief Input Capture 콜백 함수 포인터 타입
+ */
+typedef void (*timCaptureCallback_t)(TIM_HandleTypeDef *htim);
+
+/**
+ * @brief  특정 타이머 인스턴스 및 채널에 Input Capture 콜백 함수를 등록하는 공용 함수
+ * @param  instance : TIM2, TIM3, TIM4 등
+ * @param  channel : TIM_CHANNEL_1, TIM_CHANNEL_2, TIM_CHANNEL_3, TIM_CHANNEL_4
+ * @param  cb : 콜백 함수 포인터
+ */
+void timerAttachCaptureCallback(TIM_TypeDef *instance, uint32_t channel, timCaptureCallback_t cb);
+
 #ifdef __cplusplus
 }
 #endif

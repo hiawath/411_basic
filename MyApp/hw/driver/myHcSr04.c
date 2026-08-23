@@ -16,6 +16,8 @@ static void delayUs(uint32_t us)
   while ((DWT->CYCCNT - start) < ticks);
 }
 
+#include "myTimer.h"
+
 /**
  * @brief  HC-SR04 초음파 센서 드라이버 초기화
  */
@@ -38,6 +40,9 @@ void hcSr04Init(void)
   HAL_GPIO_Init(HCSR04_TRIG_PORT, &GPIO_InitStruct);
 
   HAL_GPIO_WritePin(HCSR04_TRIG_PORT, HCSR04_TRIG_PIN, GPIO_PIN_RESET);
+
+  /* TIM2 CH3에 HC-SR04 Input Capture 콜백 등록 */
+  timerAttachCaptureCallback(TIM2, TIM_CHANNEL_3, hcSr04CaptureCallback);
 }
 
 /**
