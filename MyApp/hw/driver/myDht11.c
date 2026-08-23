@@ -92,14 +92,24 @@ void dht11CaptureCallback(TIM_HandleTypeDef *htim)
   }
 }
 
+#include "myHcSr04.h"
+
 /**
  * @brief  STM32 HAL 타이머 Input Capture 콜백 라우팅
+ *         TIM2 CH1: DHT11, TIM2 CH3: HC-SR04 Echo
  */
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM2)
   {
-    dht11CaptureCallback(htim);
+    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+      dht11CaptureCallback(htim);
+    }
+    else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
+    {
+      hcSr04CaptureCallback(htim);
+    }
   }
 }
 
