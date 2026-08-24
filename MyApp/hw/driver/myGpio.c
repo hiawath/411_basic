@@ -1,6 +1,6 @@
 #include "myGpio.h"
 #include <stdio.h>
-#include "rtc.h"
+
 
 void gpioInit(void){
     //

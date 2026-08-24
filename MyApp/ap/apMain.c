@@ -12,7 +12,6 @@
 #include "mySsd1306.h"
 #include "myDs1302.h"
 #include "tim.h"
-#include "rtc.h"
 #include "myGpio.h"
 
 
@@ -60,12 +59,7 @@ void apMain(void) {
   ssd1306DrawLine(4, 13, 124,13, SSD1306_COLOR_WHITE);
   ssd1306Update();
   HAL_TIM_Base_Start_IT(&htim3);
-
-  /* 10초 주기 알람 루프 시작 */
-    RTC_Set_Next_10s_Alarm();
-
-  RTC_TimeTypeDef sTime;
-  RTC_DateTypeDef sDate;
+  HAL_TIM_Base_Start_IT(&htim4);
 
   while (1) {
     current_tick=HAL_GetTick();
@@ -75,15 +69,6 @@ void apMain(void) {
 
       ds1302GetDateTime(&rtc_time);
       hcSr04Read(&distance_cm);
-
-        /* RTC 레지스터 구조상 Time을 먼저 읽고 Date를 다음에 읽어야 락(Lock)이 풀리며 동기화됨 */
-      HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-      HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-
-      /* 시리얼 터미널로 실시간 날짜와 시간 출력 */
-      printf("Date: 20%02d-%02d-%02d ", sDate.Year, sDate.Month, sDate.Date);
-      printf("Time: %02d:%02d:%02d\r\n", sTime.Hours, sTime.Minutes, sTime.Seconds);
-
 
 
       //HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
