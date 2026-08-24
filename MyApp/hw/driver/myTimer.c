@@ -15,11 +15,11 @@ void timerPwmStart(void){
 }
 
 void timerPwmStop(void){
-    HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1);
 }
 
 void timerSetDuty(uint8_t duty_percent){
-    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim2)+1;
+    uint32_t period = __HAL_TIM_GET_AUTORELOAD(&htim3)+1;
 }
 
 

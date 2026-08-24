@@ -59,7 +59,7 @@ void apMain(void) {
   ssd1306DrawString(8, 3, "STM32 MULTI-SENSOR", SSD1306_COLOR_WHITE);
   ssd1306DrawLine(4, 13, 124,13, SSD1306_COLOR_WHITE);
   ssd1306Update();
-  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_Base_Start_IT(&htim3);
 
   /* 10초 주기 알람 루프 시작 */
     RTC_Set_Next_10s_Alarm();
