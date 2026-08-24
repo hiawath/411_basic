@@ -128,7 +128,7 @@ void ssd1306Update(void) {
 }
 
 void ssd1306DrawPixel(int16_t x, int16_t y, uint8_t color) {
-  if (x < 0 || x >= SSD1306_HEIGHT || y < 0 || y >= SSD1306_HEIGHT) {
+  if (x < 0 || x >= SSD1306_WIDTH || y < 0 || y >= SSD1306_HEIGHT) {
     return;
   }
 

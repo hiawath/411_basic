@@ -1,4 +1,5 @@
 #include "apMain.h"
+#include "myHcSr04.h"
 #include "myLcd1602.h"
 #include "myAdc.h"
 #include "myUart.h"
@@ -9,6 +10,10 @@
 #include "stm32f4xx_hal_adc.h"
 #include "myMpu6050.h"
 #include "mySsd1306.h"
+#include "myDs1302.h"
+#include "tim.h"
+#include "rtc.h"
+#include "myGpio.h"
 
 
 #include <stdint.h>
@@ -18,6 +23,9 @@
 
 static mpu6050Data_t mpu_data={0};
 extern ADC_HandleTypeDef hadc1;
+
+  static ds1302Time_t rtc_time={0};
+
 void apInit(void) { 
   uartInit();
   adcInit();
@@ -26,6 +34,8 @@ void apInit(void) {
   i2cScan();
   mpu6050Init();
   ssd1306Init();
+  ds1302Init();
+
 
 
  
@@ -34,6 +44,8 @@ void apInit(void) {
 float internal_temp=0;
 dht11Data_t dht_data={0};
 bool dht_status=false;
+float distance_cm=0.0f;
+
 void apMain(void) {
 
   uint32_t tick_1000=0;
@@ -47,13 +59,37 @@ void apMain(void) {
   ssd1306DrawString(8, 3, "STM32 MULTI-SENSOR", SSD1306_COLOR_WHITE);
   ssd1306DrawLine(4, 13, 124,13, SSD1306_COLOR_WHITE);
   ssd1306Update();
+  HAL_TIM_Base_Start_IT(&htim2);
 
+  /* 10초 주기 알람 루프 시작 */
+    RTC_Set_Next_10s_Alarm();
+
+  RTC_TimeTypeDef sTime;
+  RTC_DateTypeDef sDate;
 
   while (1) {
     current_tick=HAL_GetTick();
 
     if(current_tick-tick_1000>=1000){
       tick_1000=current_tick;
+
+      ds1302GetDateTime(&rtc_time);
+      hcSr04Read(&distance_cm);
+
+        /* RTC 레지스터 구조상 Time을 먼저 읽고 Date를 다음에 읽어야 락(Lock)이 풀리며 동기화됨 */
+      HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+      HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
+      /* 시리얼 터미널로 실시간 날짜와 시간 출력 */
+      printf("Date: 20%02d-%02d-%02d ", sDate.Year, sDate.Month, sDate.Date);
+      printf("Time: %02d:%02d:%02d\r\n", sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+
+
+      //HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+
+      printf("sec : %d\r\n",rtc_time.sec);
+
 
     }
 
@@ -83,6 +119,7 @@ void apMain(void) {
 
     if(current_tick-tick_50>=50){
       tick_50=current_tick;
+      //printf("dis : %6.1f\r\n",distance_cm);
     }
 
   }
