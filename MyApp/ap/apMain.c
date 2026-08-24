@@ -32,7 +32,7 @@ void apInit(void) {
   lcd1602Init();
   i2cScan();
   mpu6050Init();
-  ssd1306Init();
+  //ssd1306Init();
   ds1302Init();
 
 
@@ -53,11 +53,12 @@ void apMain(void) {
   uint32_t tick_50=0;
   uint32_t current_tick=0;
 
-  ssd1306Clear();
-  ssd1306DrawRect(0, 0, SSD1306_WIDTH, SSD1306_HEIGHT, SSD1306_COLOR_WHITE);
-  ssd1306DrawString(8, 3, "STM32 MULTI-SENSOR", SSD1306_COLOR_WHITE);
-  ssd1306DrawLine(4, 13, 124,13, SSD1306_COLOR_WHITE);
-  ssd1306Update();
+  // ssd1306Clear();
+  // ssd1306DrawRect(0, 0, SSD1306_WIDTH, SSD1306_HEIGHT, SSD1306_COLOR_WHITE);
+  // ssd1306DrawString(8, 3, "STM32 MULTI-SENSOR", SSD1306_COLOR_WHITE);
+  // ssd1306DrawLine(4, 13, 124,13, SSD1306_COLOR_WHITE);
+  // ssd1306Update();
+
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_Base_Start_IT(&htim4);
 
