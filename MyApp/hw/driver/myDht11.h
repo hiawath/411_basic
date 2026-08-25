@@ -3,8 +3,8 @@
 #include "main.h"
 #include <stdbool.h>
 
-#define DHT11_PIN GPIO_PIN_1
-#define DHT11_PORT GPIOC
+#define DHT11_PIN GPIO_PIN_0
+#define DHT11_PORT GPIOA
 
 typedef struct _dht11Data_t{
     float temperature;
