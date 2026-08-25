@@ -13,7 +13,7 @@
 #include "myDs1302.h"
 #include "tim.h"
 #include "myGpio.h"
-
+#include "myTimer.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -34,6 +34,7 @@ void apInit(void) {
   mpu6050Init();
   //ssd1306Init();
   ds1302Init();
+  timerInit();
 
 
 
@@ -59,8 +60,13 @@ void apMain(void) {
   // ssd1306DrawLine(4, 13, 124,13, SSD1306_COLOR_WHITE);
   // ssd1306Update();
 
-  HAL_TIM_Base_Start_IT(&htim3);
-  HAL_TIM_Base_Start_IT(&htim4);
+  // HAL_TIM_Base_Start_IT(&htim3);
+  // HAL_TIM_Base_Start_IT(&htim4);
+
+
+
+
+  //  timerSetDuty(50);
 
   while (1) {
     current_tick=HAL_GetTick();
