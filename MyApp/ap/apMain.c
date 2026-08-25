@@ -70,7 +70,7 @@ void apMain(void) {
 
   while (1) {
     current_tick=HAL_GetTick();
-     timerLedBreath();
+    timerLedUpdate();
 
     if(current_tick-tick_1000>=1000){
       tick_1000=current_tick;
