@@ -16,6 +16,7 @@
 #include "tim.h"
 #include "myGpio.h"
 #include "myTimer.h"
+#include "myMcp2515.h"
 #include <stdatomic.h>
 
 
@@ -40,7 +41,12 @@ const osMutexAttr_t counterMutex_attributes = {
 static mpu6050Data_t mpu_data={0};
 extern ADC_HandleTypeDef hadc1;
 
-  static ds1302Time_t rtc_time={0};
+static ds1302Time_t rtc_time={0};
+
+static void canRxCallback(const mcp2515Msg_t *msg) {
+  /* 인터럽트 발생 시 호출되는 콜백 */
+  // printf in ISR or light-weight notification
+}
 
 void apInit(void) { 
   uartInit();
@@ -53,9 +59,13 @@ void apInit(void) {
   ds1302Init();
   timerInit();
 
-
-
- 
+  /* MCP2515 CAN 컨트롤러 초기화 (500kbps, 8MHz 크리스탈) */
+  if (mcp2515Init()) {
+    printf("[CAN] MCP2515 Init Success!\r\n");
+    mcp2515SetRxCallback(canRxCallback);
+  } else {
+    printf("[CAN] MCP2515 Init Failed!\r\n");
+  }
 }
 
 float internal_temp=0;
@@ -69,6 +79,7 @@ void apMain(void) {
   uint32_t tick_250=0;
   uint32_t tick_100=0;
   uint32_t tick_50=0;
+  uint32_t tick_10=0;
   uint32_t current_tick=0;
 
   // ssd1306Clear();
@@ -89,6 +100,17 @@ void apMain(void) {
     current_tick=HAL_GetTick();
     timerLedUpdate();
 
+    /* CAN 인터럽트 수신 큐(FIFO) 처리 */
+    mcp2515Msg_t rx_msg;
+    while (mcp2515GetRxFifo(&rx_msg)) {
+      printf("[CAN RX] ID: 0x%03lX (Ext:%d, RTR:%d), DLC: %d, Data: ",
+             (unsigned long)rx_msg.id, rx_msg.is_ext, rx_msg.is_rtr, rx_msg.dlc);
+      for (uint8_t i = 0; i < rx_msg.dlc; i++) {
+        printf("%02X ", rx_msg.data[i]);
+      }
+      printf("\r\n");
+    }
+
     if(current_tick-tick_1000>=1000){
       tick_1000=current_tick;
     }
@@ -108,6 +130,37 @@ void apMain(void) {
     }
     if(current_tick-tick_50>=50){
       tick_50=current_tick;
+    }
+
+    if(current_tick-tick_10>=10){
+      tick_10=current_tick;
+
+      
+      /* CAN 송신: 1초 주기로 count 데이터 전송 */
+      static uint32_t can_tx_count = 0;
+      mcp2515Msg_t tx_msg;
+      tx_msg.id = 0x123;
+      tx_msg.is_ext = false;
+      tx_msg.is_rtr = false;
+      tx_msg.dlc = 8;
+      tx_msg.data[0] = (uint8_t)(can_tx_count >> 24);
+      tx_msg.data[1] = (uint8_t)(can_tx_count >> 16);
+      tx_msg.data[2] = (uint8_t)(can_tx_count >> 8);
+      tx_msg.data[3] = (uint8_t)(can_tx_count & 0xFF);
+      tx_msg.data[4] = 0xAA;
+      tx_msg.data[5] = 0xBB;
+      tx_msg.data[6] = 0xCC;
+      tx_msg.data[7] = 0xDD;
+
+      if (mcp2515SendMessage(&tx_msg)) {
+        printf("[CAN TX] ID: 0x%03lX, Count: %lu, Data: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+               (unsigned long)tx_msg.id, (unsigned long)can_tx_count,
+               tx_msg.data[0], tx_msg.data[1], tx_msg.data[2], tx_msg.data[3],
+               tx_msg.data[4], tx_msg.data[5], tx_msg.data[6], tx_msg.data[7]);
+      } else {
+        printf("[CAN TX] Send Failed!\r\n");
+      }
+      can_tx_count++;
     }
 
   }
