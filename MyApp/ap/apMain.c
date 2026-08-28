@@ -16,7 +16,8 @@
 #include "tim.h"
 #include "myGpio.h"
 #include "myTimer.h"
-#include "FreeRTOS.h"
+#include <stdatomic.h>
+
 
 #include <stdint.h>
 #include <stdio.h>
@@ -184,13 +185,15 @@ void StartTaskDHT11(void *argument){
 
 }
 
+
 /* Task 1: 50만 번 증가 */
 void StartTask01(void *argument){
     for (uint32_t i = 0; i < HALF_COUNT; i++)
 	  {
-      osMutexAcquire(counterMutexHandle, osWaitForever);
-      g_shared_counter++; // [비원자적 연산] Read -> Modify -> Write
-      osMutexRelease(counterMutexHandle);
+      //osMutexAcquire(counterMutexHandle, osWaitForever);
+      //g_shared_counter++; // [비원자적 연산] Read -> Modify -> Write
+      //osMutexRelease(counterMutexHandle);
+      atomic_fetch_add(&g_shared_counter, 1);
     }
     task1_done = 1;
     osThreadExit();
@@ -200,9 +203,10 @@ void StartTask01(void *argument){
 void StartTask02(void *argument){
     for (uint32_t i = 0; i < HALF_COUNT; i++)
     {
-      osMutexAcquire(counterMutexHandle, osWaitForever);
-        g_shared_counter++; // [비원자적 연산] Read -> Modify -> Write
-      osMutexRelease(counterMutexHandle);
+      // osMutexAcquire(counterMutexHandle, osWaitForever);
+      //   g_shared_counter++; // [비원자적 연산] Read -> Modify -> Write
+      // osMutexRelease(counterMutexHandle);
+      atomic_fetch_add(&g_shared_counter, 1);
     }
     task2_done = 1;
     osThreadExit();
