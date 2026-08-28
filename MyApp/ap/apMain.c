@@ -214,25 +214,35 @@ void StartTaskHCS04(void *argument){
   while(1){
     hcSr04Read(&distance_cm);
     printf(">hcs:%6.1f\r\n",distance_cm);
-    osDelay(50);
+    osDelay(250);
   }
 }
 
 void StartTaskDHT11(void *argument){
+  /* 태스크 시작 시 1회만 화면 초기화 */
+  lcd1602Clear();
+
+  char line_buf[17];
+
   while(1){
     adcUpdate();
     dht_status=dht11Read(&dht_data);
     internal_temp=adcGetTemp();
 
-    lcd1602Clear();
+    /* 1번째 줄: 16칸 고정 너비로 덮어쓰기 (공백 패딩) */
+    snprintf(line_buf, sizeof(line_buf), "Temp: %4.1f/%4.1f ", internal_temp, dht_data.temperature);
     lcd1602Cursor(0, 0);
-    lcd1602Printf("Temp %.2f/%.2f", internal_temp,dht_data.temperature);
+    lcd1602Print(line_buf);
+
+    /* 2번째 줄: 16칸 고정 너비로 덮어쓰기 (공백 패딩) */
+    snprintf(line_buf, sizeof(line_buf), "Humi: %4.1f%%     ", dht_data.humidity);
     lcd1602Cursor(1, 0);
-    lcd1602Printf("Humi %.2f", dht_data.humidity);
+    lcd1602Print(line_buf);
 
     printf(">Temp:%.2f\r\n", dht_data.temperature);
     printf(">Humi:%.2f\r\n", dht_data.humidity);
 
+    /* DHT11 측정 주기 및 LCD 안정성에 맞추어 1초 대기 */
     osDelay(250);
   }
 
